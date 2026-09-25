@@ -1,5 +1,6 @@
 package com.project.ItineraryService.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -21,5 +22,6 @@ public class DayItinerary {
     private List<Events> eventsList;
     @ManyToOne
     @JoinColumn(name = "itineraryId")
+    @JsonIgnore
     private Itinerary itinerary;
 }

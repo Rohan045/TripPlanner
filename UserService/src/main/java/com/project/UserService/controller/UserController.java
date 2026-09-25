@@ -42,16 +42,17 @@ public class UserController {
 
     @PostMapping("login")
     public String login(@RequestBody User user){
+        UUID userId = userService.getUserByUsername(user.getUsername()).getUserId();
         Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(user.getUsername(), user.getPassword()));
         if(authentication.isAuthenticated())
-            return jwtService.generateToken(user.getUsername());
+            return jwtService.generateToken(userId);
         else
             return "Login Failed";
     }
 
-    @GetMapping("get/{id}")
-    public ResponseEntity<User> getUser(@PathVariable("id") UUID id){
-        User user = userService.getUser(id);
+    @GetMapping("get")
+    public ResponseEntity<User> getUser(@RequestHeader(value = "X-User-Id", required = true, defaultValue = "defaultVal") String userId){
+        User user = userService.getUser(UUID.fromString(userId));
         if(user == null){
             return ResponseEntity.notFound().build();
         }

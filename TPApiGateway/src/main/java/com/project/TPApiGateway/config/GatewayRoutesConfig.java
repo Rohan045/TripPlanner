@@ -21,6 +21,11 @@ public class GatewayRoutesConfig {
                         .filters(filters -> filters.filter(
                                 authenticationFilter.apply(new AuthenticationFilter.Config())))
                         .uri("lb://USERSERVICE"))
+                .route("itinerary-service", route -> route
+                        .path("/itinerary/**")
+                        .filters(filters -> filters.filter(
+                                authenticationFilter.apply(new AuthenticationFilter.Config())))
+                        .uri("lb://ITINERARYSERVICE"))
                 .build();
     }
 }

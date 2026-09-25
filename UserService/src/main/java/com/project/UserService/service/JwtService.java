@@ -11,6 +11,7 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 public class JwtService {
@@ -22,11 +23,11 @@ public class JwtService {
         KeyFactory kf = KeyFactory.getInstance("RSA");
         this.privateKey = kf.generatePrivate(spec);
     }
-    public String generateToken(String username) {
+    public String generateToken(UUID userId) {
         Map<String, Object> claims = new HashMap<>();
         return Jwts.builder()
                 .claims(claims)
-                .subject(username)
+                .subject(userId.toString())
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + 1000*60*30))
                 .signWith(privateKey)

@@ -21,4 +21,9 @@ public class UserService {
         Optional<User> user = userRepo.findById(userId);
         return user.orElse(null);
     }
+
+    public User getUserByUsername(String username){
+        Optional<User> user = userRepo.findByUsername(username);
+        return user.orElse(null);
+    }
 }
