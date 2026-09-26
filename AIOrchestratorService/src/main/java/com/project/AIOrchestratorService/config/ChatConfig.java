@@ -29,7 +29,7 @@ public class ChatConfig {
                 """)
                 .defaultOptions(OllamaChatOptions.builder()
                         .format("json")
-                        .numCtx(8192)
+                        .numCtx(2048)
                         .model("llama3.2")
                         .temperature(0.2))
                 .build();

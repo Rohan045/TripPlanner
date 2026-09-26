@@ -1,10 +1,13 @@
 package com.project.AIOrchestratorService.service;
 
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.AIOrchestratorService.dto.GeneratedItinerary;
 import com.project.AIOrchestratorService.dto.TripDetails;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -12,11 +15,14 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.util.List;
+import java.util.UUID;
 
 @Service
 public class AIService {
 
     private static final int DEFAULT_TRIP_DAYS = 3;
+    private final boolean test = true;
 
     private static final String USER_PROMPT = """
             Plan a {days}-day trip and return it as JSON.
@@ -41,6 +47,13 @@ public class AIService {
 
     private final ChatClient chatClient;
     private final ObjectMapper objectMapper;
+    private static final String TOPIC = "itinerary-details";
+    private record ItineraryWithId(
+            UUID itineraryId,
+            @JsonUnwrapped
+            GeneratedItinerary itinerary) {}
+    @Autowired
+    KafkaTemplate<String, ItineraryWithId> kafkaTemplate;
 
     public AIService(ChatClient itineraryChatClient, ObjectMapper objectMapper) {
         this.chatClient = itineraryChatClient;
@@ -55,7 +68,7 @@ public class AIService {
         LocalDate startDate = parseStartDate(trip.departureTime());
         LocalDate endDate = startDate.plusDays(DEFAULT_TRIP_DAYS - 1L);
 
-        GeneratedItinerary itinerary = chatClient.prompt()
+        GeneratedItinerary itinerary = test ? createDummyItinerary() : chatClient.prompt()
                 .user(u -> u.text(USER_PROMPT)
                         .param("days", DEFAULT_TRIP_DAYS)
                         .param("destination", blankToDefault(trip.destination(), "an interesting destination"))
@@ -75,6 +88,15 @@ public class AIService {
                         + " : " + event.eventName());
                 System.out.println("    " + event.description());
             }
+        }
+        ItineraryWithId itineraryWithId = new ItineraryWithId(trip.itineraryId(), itinerary);
+        sendGeneratedItinerary(itineraryWithId);
+    }
+    private void sendGeneratedItinerary(ItineraryWithId generatedItinerary) throws Exception {
+        try {
+            kafkaTemplate.send(TOPIC, generatedItinerary).get();
+        } catch (Exception exception) {
+            throw new Exception("Error while sending trip details upstream");
         }
     }
 
@@ -112,5 +134,59 @@ public class AIService {
 
     private static String blankToDefault(String value, String fallback) {
         return (value == null || value.isBlank()) ? fallback : value;
+    }
+    public static GeneratedItinerary createDummyItinerary() {
+        return new GeneratedItinerary(
+                List.of(
+                        // Day 1
+                        new GeneratedItinerary.GeneratedDay(
+                                1,
+                                List.of(
+                                        new GeneratedItinerary.GeneratedEvent(
+                                                "Hotel Check-in & Orientation Walk",
+                                                "Arrive at the hotel, check into your room, and unpack. Take a short walk nearby to get familiar with the neighborhood.",
+                                                "2026-10-10T09:00:00",
+                                                "2026-10-10T11:00:00"
+                                        ),
+                                        new GeneratedItinerary.GeneratedEvent(
+                                                "Historic City Center Tour",
+                                                "Explore iconic monuments and heritage landmarks accompanied by a local guide. Learn about local architecture and traditions.",
+                                                "2026-10-10T11:30:00",
+                                                "2026-10-10T14:00:00"
+                                        ),
+                                        new GeneratedItinerary.GeneratedEvent(
+                                                "Sunset Waterfront Cruise",
+                                                "Enjoy scenic views along the riverfront during golden hour. Relax with evening refreshments on board.",
+                                                "2026-10-10T17:00:00",
+                                                "2026-10-10T19:30:00"
+                                        )
+                                )
+                        ),
+                        // Day 2
+                        new GeneratedItinerary.GeneratedDay(
+                                2,
+                                List.of(
+                                        new GeneratedItinerary.GeneratedEvent(
+                                                "Local Street Food & Market Tour",
+                                                "Visit bustling local markets and sample authentic street cuisine. Interact with local vendors and taste artisanal dishes.",
+                                                "2026-10-11T09:30:00",
+                                                "2026-10-11T12:00:00"
+                                        ),
+                                        new GeneratedItinerary.GeneratedEvent(
+                                                "Museum & Fine Arts Gallery Visit",
+                                                "Discover regional historical artifacts and modern art collections inside the city's premier museum.",
+                                                "2026-10-11T14:00:00",
+                                                "2026-10-11T16:30:00"
+                                        ),
+                                        new GeneratedItinerary.GeneratedEvent(
+                                                "Traditional Fine Dining Experience",
+                                                "Indulge in a multi-course dinner featuring traditional regional recipes in a high-rated restaurant.",
+                                                "2026-10-11T19:00:00",
+                                                "2026-10-11T21:30:00"
+                                        )
+                                )
+                        )
+                )
+        );
     }
 }
